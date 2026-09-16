@@ -1,0 +1,73 @@
+name: Build Windows Offline App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check source archive
+        shell: pwsh
+        run: |
+          if (-not (Test-Path PROJECT_PERPUSTAKAAN-offline.zip)) {
+            throw 'PROJECT_PERPUSTAKAAN-offline.zip belum ada di repository.'
+          }
+          New-Item -ItemType Directory -Force -Path build\app | Out-Null
+          Expand-Archive -Path PROJECT_PERPUSTAKAAN-offline.zip -DestinationPath build\app -Force
+
+      - name: Download PHP 8.4 NTS
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://windows.php.net/downloads/releases/php-8.4.23-nts-Win32-vs17-x64.zip" -OutFile php.zip
+          Expand-Archive php.zip -DestinationPath build\php -Force
+          Remove-Item php.zip
+
+      - name: Download MariaDB 11.8.6
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://downloads.mariadb.org/f/mariadb-11.8.6/winx64-packages/mariadb-11.8.6-winx64.zip" -OutFile mariadb.zip
+          Expand-Archive mariadb.zip -DestinationPath build\mariadb-temp -Force
+          $dir = Get-ChildItem build\mariadb-temp -Directory | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path build\mariadb | Out-Null
+          Move-Item "$($dir.FullName)\*" build\mariadb -Force
+          Remove-Item mariadb.zip, build\mariadb-temp -Recurse -Force
+
+      - name: Configure PHP
+        shell: pwsh
+        run: |
+          Copy-Item build\php\php.ini-development build\php\php.ini
+          $p = 'build\php\php.ini'
+          (Get-Content $p) -replace ';extension=curl','extension=curl' -replace ';extension=fileinfo','extension=fileinfo' -replace ';extension=mbstring','extension=mbstring' -replace ';extension=mysqli','extension=mysqli' -replace ';extension=openssl','extension=openssl' -replace ';extension=pdo_mysql','extension=pdo_mysql' | Set-Content $p
+          Add-Content $p "`ndate.timezone = Asia/Jakarta"
+
+      - name: Publish launcher
+        shell: pwsh
+        run: |
+          dotnet publish build\app\offline\launcher\PerpustakaanLauncher.csproj -c Release -r win-x64 --self-contained true -o build\launcher
+          Copy-Item build\launcher\Perpustakaan.exe build\Perpustakaan.exe
+
+      - name: Add VC runtime
+        shell: pwsh
+        run: |
+          foreach ($name in @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll')) {
+            $src = Join-Path $env:WINDIR "System32\$name"
+            if (Test-Path $src) { Copy-Item $src build\ -Force }
+          }
+
+      - name: Package portable app
+        shell: pwsh
+        run: |
+          Remove-Item build\launcher -Recurse -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path build\* -DestinationPath Perpustakaan-Garba-Sastra-Windows.zip -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Perpustakaan-Garba-Sastra-Windows
+          path: Perpustakaan-Garba-Sastra-Windows.zip
