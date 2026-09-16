@@ -8,6 +8,8 @@
     <PublishSingleFile>true</PublishSingleFile>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <AssemblyName>Perpustakaan</AssemblyName>
     <RootNamespace>PerpustakaanLauncher</RootNamespace>
   </PropertyGroup>
