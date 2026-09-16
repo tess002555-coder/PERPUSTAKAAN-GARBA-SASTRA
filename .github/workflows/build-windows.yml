@@ -22,16 +22,26 @@ jobs:
           Get-ChildItem -Force | Where-Object { $_.Name -notin @('.git','build') } | Copy-Item -Destination build\app -Recurse -Force
           Remove-Item build\app\.github -Recurse -Force -ErrorAction SilentlyContinue
 
-      - name: Download PHP portable
+      - name: Install PHP for build
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, fileinfo, mbstring, mysqli, openssl, pdo_mysql
+          tools: composer
+
+      - name: Bundle PHP runtime
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://downloads.php.net/~windows/releases/php-8.4.24-nts-Win32-vs17-x64.zip" -OutFile php.zip
-          Expand-Archive php.zip -DestinationPath build\php -Force
-          Remove-Item php.zip
-          Copy-Item build\php\php.ini-development build\php\php.ini
-          $p = 'build\php\php.ini'
-          (Get-Content $p) -replace ';extension=curl','extension=curl' -replace ';extension=fileinfo','extension=fileinfo' -replace ';extension=mbstring','extension=mbstring' -replace ';extension=mysqli','extension=mysqli' -replace ';extension=openssl','extension=openssl' -replace ';extension=pdo_mysql','extension=pdo_mysql' -replace ';extension_dir = "ext"','extension_dir = "ext"' | Set-Content $p
-          Add-Content $p "`ndate.timezone = Asia/Jakarta"
+          $phpExe = (Get-Command php).Source
+          $phpHome = Split-Path $phpExe -Parent
+          New-Item -ItemType Directory -Force -Path build\php | Out-Null
+          Copy-Item "$phpHome\*" build\php -Recurse -Force
+          if (Test-Path build\php\php.ini-development) {
+            Copy-Item build\php\php.ini-development build\php\php.ini -Force
+            $p = 'build\php\php.ini'
+            (Get-Content $p) -replace ';extension=curl','extension=curl' -replace ';extension=fileinfo','extension=fileinfo' -replace ';extension=mbstring','extension=mbstring' -replace ';extension=mysqli','extension=mysqli' -replace ';extension=openssl','extension=openssl' -replace ';extension=pdo_mysql','extension=pdo_mysql' -replace ';extension_dir = "ext"','extension_dir = "ext"' | Set-Content $p
+            Add-Content $p "`ndate.timezone = Asia/Jakarta"
+          }
 
       - name: Download MariaDB portable
         shell: pwsh
