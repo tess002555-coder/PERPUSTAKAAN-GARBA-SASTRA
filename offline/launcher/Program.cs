@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
@@ -6,9 +7,7 @@ using System.Windows.Forms;
 internal static class Program
 {
     private static readonly string BaseDir = AppContext.BaseDirectory.TrimEnd('\\');
-    private static readonly string DataDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "PerpustakaanGarbaSastra", "Data");
+    private static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PerpustakaanGarbaSastra", "Data");
     private static readonly string MariaDir = Path.Combine(BaseDir, "mariadb");
     private static readonly string PhpDir = Path.Combine(BaseDir, "php");
     private static readonly string AppDir = Path.Combine(BaseDir, "app");
@@ -33,10 +32,7 @@ internal static class Program
             if (!WaitForPort(WebPort, 20000))
                 throw new Exception("Web server lokal gagal dijalankan pada port 8087.");
 
-            Process.Start(new ProcessStartInfo($"http://127.0.0.1:{WebPort}/")
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo($"http://127.0.0.1:{WebPort}/") { UseShellExecute = true });
 
             while (!(php?.HasExited ?? true))
                 Thread.Sleep(500);
@@ -44,11 +40,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                "Perpustakaan tidak dapat dijalankan.\n\n" + ex.Message,
-                "Perpustakaan",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+            MessageBox.Show("Perpustakaan tidak dapat dijalankan.\n\n" + ex.Message, "Perpustakaan", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
         finally
@@ -69,8 +61,7 @@ internal static class Program
         if (installer == null)
             throw new Exception("Program inisialisasi MariaDB tidak ditemukan di folder portable.");
 
-        Run(installer,
-            $"--datadir=\"{data}\" --password=\"\" --port={DbPort} --allow-remote-root-access");
+        Run(installer, $"--datadir=\"{data}\" --password=\"\" --port={DbPort} --allow-remote-root-access");
     }
 
     private static void StartDatabase()
@@ -145,8 +136,7 @@ internal static class Program
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        using var p = Process.Start(psi)
-            ?? throw new Exception($"Gagal menjalankan {Path.GetFileName(exe)}.");
+        using var p = Process.Start(psi) ?? throw new Exception($"Gagal menjalankan {Path.GetFileName(exe)}.");
 
         if (stdinFile != null)
         {
