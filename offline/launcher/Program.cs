@@ -6,7 +6,9 @@ using System.Windows.Forms;
 internal static class Program
 {
     private static readonly string BaseDir = AppContext.BaseDirectory.TrimEnd('\\');
-    private static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PerpustakaanGarbaSastra", "Data");
+    private static readonly string DataDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PerpustakaanGarbaSastra", "Data");
     private static readonly string MariaDir = Path.Combine(BaseDir, "mariadb");
     private static readonly string PhpDir = Path.Combine(BaseDir, "php");
     private static readonly string AppDir = Path.Combine(BaseDir, "app");
@@ -23,17 +25,30 @@ internal static class Program
             Directory.CreateDirectory(DataDir);
             InitializeDatabaseIfNeeded();
             StartDatabase();
-            if (!WaitForPort(DbPort, 30000)) throw new Exception("Database lokal gagal dijalankan.");
+            if (!WaitForPort(DbPort, 60000))
+                throw new Exception("Database lokal gagal dijalankan pada port 3307.");
+
             ImportSchema();
             StartPhp();
-            if (!WaitForPort(WebPort, 15000)) throw new Exception("Web server lokal gagal dijalankan.");
-            Process.Start(new ProcessStartInfo($"http://127.0.0.1:{WebPort}/") { UseShellExecute = true });
-            while (!(php?.HasExited ?? true)) Thread.Sleep(500);
+            if (!WaitForPort(WebPort, 20000))
+                throw new Exception("Web server lokal gagal dijalankan pada port 8087.");
+
+            Process.Start(new ProcessStartInfo($"http://127.0.0.1:{WebPort}/")
+            {
+                UseShellExecute = true
+            });
+
+            while (!(php?.HasExited ?? true))
+                Thread.Sleep(500);
             return 0;
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Perpustakaan tidak dapat dijalankan.\n\n" + ex.Message, "Perpustakaan", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(
+                "Perpustakaan tidak dapat dijalankan.\n\n" + ex.Message,
+                "Perpustakaan",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
             return 1;
         }
         finally
@@ -46,16 +61,24 @@ internal static class Program
     private static void InitializeDatabaseIfNeeded()
     {
         var data = Path.Combine(DataDir, "mysql");
-        if (Directory.Exists(data) && Directory.GetFileSystemEntries(data).Length > 0) return;
+        if (Directory.Exists(data) && Directory.GetFileSystemEntries(data).Length > 0)
+            return;
+
+        Directory.CreateDirectory(data);
         var installer = FindMaria("mariadb-install-db.exe", "mysql_install_db.exe");
-        if (installer == null) throw new Exception("Program inisialisasi MariaDB tidak ditemukan.");
-        Run(installer, $"--datadir=\"{data}\" --password=\"\"");
+        if (installer == null)
+            throw new Exception("Program inisialisasi MariaDB tidak ditemukan di folder portable.");
+
+        Run(installer,
+            $"--datadir=\"{data}\" --password=\"\" --port={DbPort} --allow-remote-root-access");
     }
 
     private static void StartDatabase()
     {
         var server = FindMaria("mariadbd.exe", "mysqld.exe");
-        if (server == null) throw new Exception("Server MariaDB tidak ditemukan.");
+        if (server == null)
+            throw new Exception("Server MariaDB tidak ditemukan di folder portable.");
+
         db = Process.Start(new ProcessStartInfo
         {
             FileName = server,
@@ -69,16 +92,22 @@ internal static class Program
     private static void ImportSchema()
     {
         var client = FindMaria("mariadb.exe", "mysql.exe");
-        if (client == null) throw new Exception("Client MariaDB tidak ditemukan.");
+        if (client == null)
+            throw new Exception("Client MariaDB tidak ditemukan di folder portable.");
+
         var sql = Path.Combine(AppDir, "offline", "database.sql");
-        if (!File.Exists(sql)) throw new Exception("File database.sql tidak ditemukan.");
+        if (!File.Exists(sql))
+            throw new Exception("File app\\offline\\database.sql tidak ditemukan.");
+
         Run(client, $"-h127.0.0.1 -P{DbPort} -uroot --protocol=tcp", sql);
     }
 
     private static void StartPhp()
     {
         var exe = Path.Combine(PhpDir, "php.exe");
-        if (!File.Exists(exe)) throw new Exception("PHP portable tidak ditemukan.");
+        if (!File.Exists(exe))
+            throw new Exception("PHP portable tidak ditemukan di folder portable.");
+
         php = Process.Start(new ProcessStartInfo
         {
             FileName = exe,
@@ -91,12 +120,13 @@ internal static class Program
 
     private static string? FindMaria(params string[] names)
     {
-        foreach (var n in names)
+        foreach (var name in names)
         {
-            var p = Path.Combine(MariaDir, "bin", n);
-            if (File.Exists(p)) return p;
-            p = Path.Combine(MariaDir, n);
-            if (File.Exists(p)) return p;
+            var path = Path.Combine(MariaDir, "bin", name);
+            if (File.Exists(path)) return path;
+
+            path = Path.Combine(MariaDir, name);
+            if (File.Exists(path)) return path;
         }
         return null;
     }
@@ -114,19 +144,27 @@ internal static class Program
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
-        using var p = Process.Start(psi) ?? throw new Exception($"Gagal menjalankan {Path.GetFileName(exe)}.");
+
+        using var p = Process.Start(psi)
+            ?? throw new Exception($"Gagal menjalankan {Path.GetFileName(exe)}.");
+
         if (stdinFile != null)
         {
             p.StandardInput.Write(File.ReadAllText(stdinFile, Encoding.UTF8));
             p.StandardInput.Close();
         }
-        if (!p.WaitForExit(60000))
+
+        if (!p.WaitForExit(120000))
         {
             try { p.Kill(true); } catch { }
             throw new Exception($"{Path.GetFileName(exe)} timeout.");
         }
+
         if (p.ExitCode != 0)
-            throw new Exception($"{Path.GetFileName(exe)} gagal: {p.StandardError.ReadToEnd().Trim()}");
+        {
+            var error = p.StandardError.ReadToEnd().Trim();
+            throw new Exception($"{Path.GetFileName(exe)} gagal: {error}");
+        }
     }
 
     private static bool WaitForPort(int port, int timeoutMs)
@@ -136,9 +174,10 @@ internal static class Program
         {
             try
             {
-                using var c = new TcpClient();
-                var t = c.ConnectAsync("127.0.0.1", port);
-                if (t.Wait(300) && c.Connected) return true;
+                using var client = new TcpClient();
+                var task = client.ConnectAsync("127.0.0.1", port);
+                if (task.Wait(500) && client.Connected)
+                    return true;
             }
             catch { }
             Thread.Sleep(250);
@@ -146,10 +185,15 @@ internal static class Program
         return false;
     }
 
-    private static void Stop(Process? p)
+    private static void Stop(Process? process)
     {
-        if (p == null) return;
-        try { if (!p.HasExited) p.Kill(true); } catch { }
-        p.Dispose();
+        if (process == null) return;
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(true);
+        }
+        catch { }
+        process.Dispose();
     }
 }
