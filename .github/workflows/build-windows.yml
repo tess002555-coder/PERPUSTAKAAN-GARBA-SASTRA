@@ -25,7 +25,7 @@ jobs:
       - name: Download PHP portable
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://windows.php.net/downloads/releases/php-8.4.24-nts-Win32-vs17-x64.zip" -OutFile php.zip
+          Invoke-WebRequest -Uri "https://downloads.php.net/~windows/releases/php-8.4.24-nts-Win32-vs17-x64.zip" -OutFile php.zip
           Expand-Archive php.zip -DestinationPath build\php -Force
           Remove-Item php.zip
           Copy-Item build\php\php.ini-development build\php\php.ini
