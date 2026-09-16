@@ -53,7 +53,7 @@ jobs:
       - name: Download MariaDB portable
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://dlm.mariadb.com/browse/mariadb_server/11.8.9/winx64-packages/mariadb-11.8.9-winx64.zip" -OutFile mariadb.zip
+          Invoke-WebRequest -Uri "https://dlm.mariadb.com/4707361/MariaDB/mariadb-11.8.8/winx64-packages/mariadb-11.8.8-winx64.zip" -OutFile mariadb.zip
           Expand-Archive mariadb.zip -DestinationPath build\mariadb-temp -Force
           $dir = Get-ChildItem build\mariadb-temp -Directory | Select-Object -First 1
           if (-not $dir) { throw 'Paket MariaDB tidak dapat diekstrak.' }
