@@ -1,34 +1,39 @@
-name: Build Windows Offline App
+name: Build Perpustakaan Windows Offline
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v4
 
-      - name: Check source archive
+      - name: Prepare application files
         shell: pwsh
         run: |
-          if (-not (Test-Path PROJECT_PERPUSTAKAAN-offline.zip)) {
-            throw 'PROJECT_PERPUSTAKAAN-offline.zip belum ada di repository.'
-          }
           New-Item -ItemType Directory -Force -Path build\app | Out-Null
-          Expand-Archive -Path PROJECT_PERPUSTAKAAN-offline.zip -DestinationPath build\app -Force
+          Get-ChildItem -Force | Where-Object { $_.Name -notin @('.git','build') } | Copy-Item -Destination build\app -Recurse -Force
+          Remove-Item build\app\.github -Recurse -Force -ErrorAction SilentlyContinue
 
-      - name: Download PHP 8.4 NTS
+      - name: Download PHP portable
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://windows.php.net/downloads/releases/php-8.4.23-nts-Win32-vs17-x64.zip" -OutFile php.zip
           Expand-Archive php.zip -DestinationPath build\php -Force
           Remove-Item php.zip
+          Copy-Item build\php\php.ini-development build\php\php.ini
+          $p = 'build\php\php.ini'
+          (Get-Content $p) -replace ';extension=curl','extension=curl' -replace ';extension=fileinfo','extension=fileinfo' -replace ';extension=mbstring','extension=mbstring' -replace ';extension=mysqli','extension=mysqli' -replace ';extension=openssl','extension=openssl' -replace ';extension=pdo_mysql','extension=pdo_mysql' -replace ';extension_dir = "ext"','extension_dir = "ext"' | Set-Content $p
+          Add-Content $p "`ndate.timezone = Asia/Jakarta"
 
-      - name: Download MariaDB 11.8.6
+      - name: Download MariaDB portable
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://downloads.mariadb.org/f/mariadb-11.8.6/winx64-packages/mariadb-11.8.6-winx64.zip" -OutFile mariadb.zip
@@ -38,35 +43,28 @@ jobs:
           Move-Item "$($dir.FullName)\*" build\mariadb -Force
           Remove-Item mariadb.zip, build\mariadb-temp -Recurse -Force
 
-      - name: Configure PHP
+      - name: Download Bootstrap assets for offline runtime
         shell: pwsh
         run: |
-          Copy-Item build\php\php.ini-development build\php\php.ini
-          $p = 'build\php\php.ini'
-          (Get-Content $p) -replace ';extension=curl','extension=curl' -replace ';extension=fileinfo','extension=fileinfo' -replace ';extension=mbstring','extension=mbstring' -replace ';extension=mysqli','extension=mysqli' -replace ';extension=openssl','extension=openssl' -replace ';extension=pdo_mysql','extension=pdo_mysql' | Set-Content $p
-          Add-Content $p "`ndate.timezone = Asia/Jakarta"
+          New-Item -ItemType Directory -Force -Path build\app\assets\css, build\app\assets\js, build\app\assets\fonts | Out-Null
+          Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" -OutFile build\app\assets\css\bootstrap.min.css
+          Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" -OutFile build\app\assets\js\bootstrap.bundle.min.js
+          Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" -OutFile build\app\assets\css\bootstrap-icons.min.css
+          Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/fonts/bootstrap-icons.woff2" -OutFile build\app\assets\fonts\bootstrap-icons.woff2
 
-      - name: Publish launcher
+      - name: Build launcher
         shell: pwsh
         run: |
-          dotnet publish build\app\offline\launcher\PerpustakaanLauncher.csproj -c Release -r win-x64 --self-contained true -o build\launcher
-          Copy-Item build\launcher\Perpustakaan.exe build\Perpustakaan.exe
+          dotnet publish build\app\offline\launcher\PerpustakaanLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o build\launcher
+          Copy-Item build\launcher\Perpustakaan.exe build\Perpustakaan.exe -Force
 
-      - name: Add VC runtime
-        shell: pwsh
-        run: |
-          foreach ($name in @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll')) {
-            $src = Join-Path $env:WINDIR "System32\$name"
-            if (Test-Path $src) { Copy-Item $src build\ -Force }
-          }
-
-      - name: Package portable app
+      - name: Package portable application
         shell: pwsh
         run: |
           Remove-Item build\launcher -Recurse -Force -ErrorAction SilentlyContinue
           Compress-Archive -Path build\* -DestinationPath Perpustakaan-Garba-Sastra-Windows.zip -Force
 
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: Perpustakaan-Garba-Sastra-Windows
