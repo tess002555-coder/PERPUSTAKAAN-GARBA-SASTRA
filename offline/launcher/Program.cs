@@ -92,7 +92,10 @@ internal static class Program
         if (!File.Exists(sql))
             throw new Exception("File app\\offline\\database.sql tidak ditemukan.");
 
-        Run(client, $"-h127.0.0.1 -P{DbPort} -uroot --protocol=tcp", sql);
+        // Local MariaDB uses a passwordless root account. SSL is unnecessary because
+        // the server is bound to localhost only, and disabling it avoids the client
+        // warning about SSL verification with passwordless authentication.
+        Run(client, $"-h127.0.0.1 -P{DbPort} -uroot --protocol=tcp --skip-ssl", sql);
     }
 
     private static void StartPhp()
