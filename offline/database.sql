@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS `buku` (
   `Penulis` VARCHAR(255) NOT NULL,
   `Kategori` VARCHAR(150) NULL,
   `penerbit` VARCHAR(255) NULL,
-  `tahun` YEAR NULL,
+  `tahun` SMALLINT NULL,
   `Stok` INT NOT NULL DEFAULT 0,
   `Cover` VARCHAR(255) NOT NULL DEFAULT 'default.jpeg',
   PRIMARY KEY (`id`),
@@ -74,5 +74,5 @@ SELECT 'Laskar Pelangi','Andrea Hirata','Novel',1,'Cover Laskar Pelangi.jpeg','B
 WHERE NOT EXISTS (SELECT 1 FROM `buku` WHERE `Judul`='Laskar Pelangi');
 
 INSERT INTO `buku` (`Judul`,`Penulis`,`Kategori`,`Stok`,`Cover`,`penerbit`,`tahun`)
-SELECT '1001 Malam','Anonim','Cerita Rakyat',1,'1001 Malam Cover.jpeg','-','1900'
+SELECT '1001 Malam','Anonim','Cerita Rakyat',1,'1001 Malam Cover.jpeg','-',1900
 WHERE NOT EXISTS (SELECT 1 FROM `buku` WHERE `Judul`='1001 Malam');
