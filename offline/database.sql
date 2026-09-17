@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS `buku` (
   KEY `idx_buku_kategori` (`Kategori`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Migrasi untuk instalasi portable yang pernah memakai schema lama dengan YEAR.
+ALTER TABLE `buku` MODIFY COLUMN `tahun` SMALLINT NULL;
+
 CREATE TABLE IF NOT EXISTS `anggota` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `Nama` VARCHAR(150) NOT NULL,
